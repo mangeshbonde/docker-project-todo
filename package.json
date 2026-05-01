@@ -1,0 +1,17 @@
+{
+  "name": "todo-mysql-app",
+  "version": "1.0.0",
+  "description": "Dockerized To-Do app with MySQL backend",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "mysql2": "^3.6.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

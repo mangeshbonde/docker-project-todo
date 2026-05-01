@@ -1,0 +1,68 @@
+version: '3.8'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# docker-compose.yml — To-Do App + MySQL
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── MySQL Database ───────────────────────────────────────────────────────────
+  mysql:
+    build:
+      context: .
+      dockerfile: Dockerfile.mysql
+    container_name: todo-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: tododb
+      MYSQL_USER: todouser
+      MYSQL_PASSWORD: todopass
+    ports:
+      - "3306:3306"        # Expose to host (useful for DB clients like DBeaver)
+    volumes:
+      - mysql_data:/var/lib/mysql          # Persistent data volume
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    networks:
+      - todo-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "--password=rootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── Node.js To-Do App ────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: todo-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"          # Access at http://localhost:3000
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: mysql          # Service name acts as hostname inside Docker network
+      DB_PORT: 3306
+      DB_USER: todouser
+      DB_PASSWORD: todopass
+      DB_NAME: tododb
+    depends_on:
+      mysql:
+        condition: service_healthy    # Wait until MySQL health check passes
+    networks:
+      - todo-network
+
+# ── Named Volumes ──────────────────────────────────────────────────────────────
+volumes:
+  mysql_data:
+    driver: local
+    name: todo_mysql_data
+
+# ── Networks ───────────────────────────────────────────────────────────────────
+networks:
+  todo-network:
+    driver: bridge
+    name: todo-network

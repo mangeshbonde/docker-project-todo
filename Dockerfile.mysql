@@ -1,0 +1,45 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Dockerfile.mysql — MySQL Database for To-Do App
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Use official MySQL 8.0 image as base
+FROM mysql:8.0
+
+# ── Metadata ──────────────────────────────────────────────────────────────────
+LABEL maintainer="todo-app"
+LABEL description="MySQL 8.0 database for To-Do App with auto-initialized schema"
+
+# ── Environment Variables ──────────────────────────────────────────────────────
+# These create the root password, a dedicated user, and the database on first boot.
+ENV MYSQL_ROOT_PASSWORD=rootpassword
+ENV MYSQL_DATABASE=tododb
+ENV MYSQL_USER=todouser
+ENV MYSQL_PASSWORD=todopass
+
+# ── Copy SQL init script ───────────────────────────────────────────────────────
+# Any .sql or .sh file placed in /docker-entrypoint-initdb.d/
+# is automatically executed when the container starts for the FIRST time.
+COPY mysql/init.sql /docker-entrypoint-initdb.d/01-init.sql
+
+# ── MySQL Configuration ────────────────────────────────────────────────────────
+# Custom config for performance and character set
+RUN echo "[mysqld]\n\
+character-set-server=utf8mb4\n\
+collation-server=utf8mb4_unicode_ci\n\
+max_connections=200\n\
+innodb_buffer_pool_size=256M\n\
+slow_query_log=1\n\
+long_query_time=2\n\
+[client]\n\
+default-character-set=utf8mb4" > /etc/mysql/conf.d/todo-app.cnf
+
+# ── Expose MySQL port ──────────────────────────────────────────────────────────
+EXPOSE 3306
+
+# ── Data volume ────────────────────────────────────────────────────────────────
+# Define a volume for persistent data storage
+VOLUME ["/var/lib/mysql"]
+
+# Health check to verify MySQL is ready
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=5 \
+  CMD mysqladmin ping -h localhost -u root --password=$$MYSQL_ROOT_PASSWORD --silent || exit 1
